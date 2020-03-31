@@ -122,9 +122,6 @@ def partitions(results):
     return partitions
 
 
-athena = Athena(database=database, output_loc=output_loc)
-
-
 def get_partitions():
     query = f"SHOW PARTITIONS {table}"
 
@@ -135,3 +132,8 @@ def get_partitions():
     partition_list = partitions(partition_results)
 
     return partition_list
+
+
+athena = Athena(database=database, output_loc=output_loc)
+
+print(get_partitions())
