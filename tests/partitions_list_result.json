@@ -1,0 +1,148 @@
+[
+    {
+        "Rows": [
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=ca-central-1/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=ap-southeast-2/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=us-east-1/year=2020/month=03/day=30"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=us-west-2/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=ap-northeast-3/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=ap-south-1/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=eu-central-1/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=us-east-2/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=eu-west-1/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=ap-northeast-2/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=eu-west-2/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=us-west-1/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=eu-west-3/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=eu-north-1/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=ap-southeast-1/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=sa-east-1/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=us-east-1/year=2020/month=03/day=21"
+                    }
+                ]
+            },
+            {
+                "Data": [
+                    {
+                        "VarCharValue": "region=ap-northeast-1/year=2020/month=03/day=21"
+                    }
+                ]
+            }
+        ],
+        "ResultSetMetadata": {
+            "ColumnInfo": [
+                {
+                    "CatalogName": "hive",
+                    "SchemaName": "",
+                    "TableName": "",
+                    "Name": "partition",
+                    "Label": "partition",
+                    "Type": "string",
+                    "Precision": 0,
+                    "Scale": 0,
+                    "Nullable": "UNKNOWN",
+                    "CaseSensitive": false
+                }
+            ]
+        }
+    }
+]
