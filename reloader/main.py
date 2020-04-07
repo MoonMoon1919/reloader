@@ -1,13 +1,5 @@
 """
 Automatically load newly created S3 prefixes into Athena.
-
-- Retrieve list of pre-existing partitions
-- Load into object
-- Check if prefix exists in existing list
-- Run add partition query
-- Wait for complete
-- Check status
-- Check partition list for new partition in partition list
 """
 
 from functools import cached_property
@@ -215,6 +207,7 @@ table = TablePartitions(athena_client=athena, table=table, schema=schema)
 
 new_partition = ["us-east-1", "2020", "04", "07"]
 
+# TODO: Add event parsing logic
 # Build the bucket location (will be done via event later)
 bucket = "mmoon-cloudtrail"
 log_location = "AWSLogs"
