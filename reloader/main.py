@@ -2,23 +2,28 @@
 Automatically load newly created S3 prefixes into Athena.
 """
 
+# Import from std lib
 from functools import cached_property
 import logging
+import os
 from time import sleep
 from typing import TypedDict
 import sys
 
+# Import from
 import boto3
 from botocore.exceptions import ClientError
 
-# TODO: Move to environment variables before shipping to prod
-database = "default"
-table = "cloudtrail_logs"
-output_loc = "s3://mmoon-athena-results/cloudtrail/add_partition/"
-schema = {0: "region", 1: "year", 2: "month", 3: "day"}
+# Move this to OS environ or SSM parameter store
+bucket = os.environ.get("BUCKET")
+log_location = os.environ.get("LOG_LOCATION")
+account_id = os.environ.get("ACCOUNT_ID")
+database = os.environ.get("DATABASE")
+table_name = os.environ.get("TABLE_NAME")
+output_loc = os.environ.get("OUTPUT_LOC")
 
 # Create the logger
-logger = logging.getLogger("peyton")
+logger = logging.getLogger("athena-cloudtrail-reloader")
 logger.setLevel(logging.INFO)
 default_handler = logging.StreamHandler(sys.stderr)
 default_handler.setFormatter(logging.Formatter("%(message)s"))
@@ -69,13 +74,13 @@ class Athena:
         finally:
             return results
 
-    def wait_for_completion(self, execution_data: ExecutionResponse) -> str:
+    def wait_for_completion(self, execution_response: ExecutionResponse) -> str:
         status = "RUNNING"
 
         while status not in ["SUCCEEDED", "FAILED", "CANCELLED"]:
             try:
                 resp = self.client.get_query_execution(
-                    QueryExecutionId=execution_data["execution_id"]
+                    QueryExecutionId=execution_response["execution_id"]
                 )
             except ClientError as e:
                 raise e
@@ -94,6 +99,11 @@ class Athena:
         )
 
     def execute_query(self, query: str) -> dict:
+        """Executes an athena query.
+
+        Args:
+            - query: a sql query to be executed in athena
+        """
         try:
             resp = self.client.start_query_execution(
                 QueryString=query,
@@ -105,17 +115,83 @@ class Athena:
         else:
             return resp
 
+    def succeeded(self, execution_response, query) -> dict:
+        """Handler for query succeeded.
+
+        Args:
+            - execution_response: A ExecutionResponse
+            - query: a valid query string
+        """
+        logger.info(
+            {
+                "response": f"Query '{query}' succeeded",
+                "status": "success",
+                "execution_id": execution_response["execution_id"],
+            }
+        )
+        return self.results(execution_response)
+
+    def cancelled(self, execution_response, query) -> bool:
+        """Handler for query cancelled.
+
+        Args:
+            - execution_response: A ExecutionResponse
+            - query: a valid query string
+        """
+        logger.info(
+            {
+                "response": f"Query {query} cancelled",
+                "status": "failed",
+                "execution_id": execution_response["execution_id"],
+            }
+        )
+        # Set execution id because f strings don't like dict lookups
+        execution_id = execution_response["execution_id"]
+
+        raise Exception(f"Query cancelled. Query Execution ID: {execution_id}")
+
+    def failed(self, execution_response, query) -> bool:
+        """Handler for query failed.
+
+        Args:
+            - execution_response: A ExecutionResponse
+            - query: a valid query string
+        """
+        logger.info(
+            {
+                "response": f"Query {query} failed",
+                "status": "failed",
+                "execution_id": execution_response["execution_id"],
+            }
+        )
+        # Set execution id because f strings don't like dict lookups
+        execution_id = execution_response["execution_id"]
+
+        raise Exception(f"Query failed. Query Execution ID: {execution_id}")
+
     def execute_and_wait(self, query: str) -> dict:
+        """Execute a query and wait for completion.
+
+        Args:
+            - query: a valid query string
+        """
         execution_response = self.execute_query(query=query)
-        execution_data = self.process_execution_response(
+        execution_response = self.process_execution_response(
             execution_response=execution_response
         )
-        status = self.wait_for_completion(execution_data=execution_data)
-        # TODO: Add handling for statuses
-        return self.results(execution_data)
+        status = self.wait_for_completion(execution_response=execution_response)
+
+        # Handle the status of the query dynamically
+        handler = getattr(self, status.lower(), None)
+        return handler(execution_response=execution_response, query=query)
 
 
 class TablePartitions:
+    """Object representing partitions of a table.
+
+    Methods allow for getting, checking if exists, and adding partitions.
+    """
+
     def __init__(self, athena_client, table, schema) -> None:
         self.athena_client = athena_client
         self.table = table
@@ -188,7 +264,7 @@ class TablePartitions:
 
         return partitions
 
-    @property
+    @cached_property
     def partitions(self) -> dict:
         """Map of partitions."""
         query = f"SHOW PARTITIONS {self.table}"
@@ -202,19 +278,48 @@ class TablePartitions:
         return partition_map
 
 
+class Event:
+    """Object representing an event from S3."""
+
+    def __init__(self, event) -> None:
+        for k, v in event.items():
+            if isinstance(v, dict):
+                nu_v = Event(v)
+                setattr(self, k, nu_v)
+            else:
+                setattr(self, k, v)
+
+
+# Instantiate the client outside of the scope of the handler so it gets cached
 athena = Athena(database=database, output_loc=output_loc)
-table = TablePartitions(athena_client=athena, table=table, schema=schema)
 
-new_partition = ["us-east-1", "2020", "04", "07"]
 
-# TODO: Add event parsing logic
-# Build the bucket location (will be done via event later)
-bucket = "mmoon-cloudtrail"
-log_location = "AWSLogs"
-account_id = "123456789012"
-bucket_loc = f"{bucket}/{log_location}/{account_id}/CloudTrail/"
+def lambda_handler(event, context):
+    """Event handler that handles S3 Put events for new Cloudtrail Logs objects.
 
-if table.check_for_partition(new_partition):
-    print("Partition exists, passing!")
-else:
-    table.add_partition(bucket_loc, new_partition)
+    Args:
+        - event: Event coming from S3
+        - context: context of the lambda execution
+    """
+    # TODO: Create this dynamically..
+    schema = {0: "region", 1: "year", 2: "month", 3: "day"}
+
+    # Keep below
+    ignore_path = f"{log_location}/{account_id}/Cloudtrail"
+    bucket_loc = f"{bucket}/{log_location}/{account_id}/CloudTrail/"
+
+    # Create the table client
+    table = TablePartitions(athena_client=athena, table=table_name, schema=schema)
+
+    # Load the event into an event object
+    event = Event(event["Records"][0])
+    new_partition = event.s3.object.key.split("/")[3:-1]
+
+    # Check the table, add or do not
+    if table.check_for_partition(new_partition):
+        logger.info({"response": "partition_exists", "status": "passing"})
+    else:
+        logger.info({"response": "partition_does_not_exist", "status": "creating"})
+        table.add_partition(bucket_loc, new_partition)
+
+    return True
