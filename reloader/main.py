@@ -30,23 +30,6 @@ default_handler.setFormatter(logging.Formatter("%(message)s"))
 logger.addHandler(default_handler)
 
 
-def generator(data):
-    """Generator."""
-    for row in data:
-        yield row
-
-
-def traverse_dict(data, value, data_type):
-    """Traverse a dict all the way to the bottom."""
-    if data.get(value):
-        data = data[value]
-    else:
-        data[value] = data_type
-        data = data[value]
-
-    return data
-
-
 class ExecutionResponse(TypedDict):
     """Data structure for Athena execution response."""
 
@@ -225,57 +208,53 @@ class TablePartitions:
 
         return self.athena_client.execute_and_wait(query=query)
 
+    def _get_partition_query(self, region: str, year: str, month: str, day: str) -> str:
+        return f"""SELECT kv['region'] AS region, kv['year'] AS year, kv['month'] AS month, kv['day'] AS day
+        FROM
+            (SELECT partition_number,
+                map_agg(partition_key,
+                partition_value) kv
+            FROM information_schema.__internal_partitions__
+            WHERE table_schema = '{self.athena_client.database}'
+                    AND table_name = '{self.table}'
+            GROUP BY  partition_number)
+        WHERE kv['region'] = '{region}'
+            AND kv['year'] = '{year}'
+            AND kv['month'] = '{month}'
+            AND kv['day'] = '{day}'"""
+
+    def _check_partition_result(self, results: dict) -> bool:
+        """Checks if the query returns more than the header row.
+
+        This is a safe binary operation because the first result will always be a header row
+        All sequential results will be matched data, so we can assume if len(results["Rows"] > 1)
+        then the partition exists
+        """
+        # This query is very specific so we can count on the paginator only returning a single page
+        l = len(results[0]["Rows"])
+
+        # If l == 1, only the header row was returned, so the partition does not exist
+        if l == 1:
+            return False
+
+        return True
+
     def check_for_partition(self, new_partition: list) -> bool:
         """Check if a new partition is already in the partition map."""
-        n = len(new_partition) - 1
-        partition_map = self.partitions
+        kwargs = {}
 
+        # Load the array into a dictionary
+        # Later we'll pass it to _get_partition_query and unpack in dynamically
         for i, d in enumerate(new_partition):
-            if i == n:
-                if d in partition_map:
-                    return True
-                else:
-                    return False
-            elif i == (n - 1):
-                partition_map = traverse_dict(partition_map, d, [])
-            else:
-                partition_map = traverse_dict(partition_map, d, {})
+            kwargs[self.schema[i]] = d
 
-    def _get_partitions(self, results) -> dict:
-        """Create a map of partitions in the table."""
-        partitions = {}
+        query = self._get_partition_query(**kwargs)
 
-        for result in results:
-            for row in generator(result["Rows"]):
-                data = row["Data"][0]["VarCharValue"]
-                splitter = data.split("/")
-                splitter = [s.split("=")[1] for s in splitter]
-                n = len(splitter) - 1
-
-                data = partitions
-
-                for i, d in enumerate(splitter):
-                    if i == n:
-                        data.append(d)
-                    elif i == (n - 1):
-                        data = traverse_dict(data, d, [])
-                    else:
-                        data = traverse_dict(data, d, {})
-
-        return partitions
-
-    @cached_property
-    def partitions(self) -> dict:
-        """Map of partitions."""
-        query = f"SHOW PARTITIONS {self.table}"
-
-        # Partition result sets
+        # Wait for query to complete, return results
         partition_results = self.athena_client.execute_and_wait(query=query)
 
-        # Get list of partitions
-        partition_map = self._get_partitions(partition_results)
-
-        return partition_map
+        # Return True or False from _check_partition_result
+        return self._check_partition_result(partition_results)
 
 
 class Event:

@@ -19,15 +19,15 @@ def retrieve_exec_resp_fixture():
     return j
 
 
-def retrieve_partition_resp_fixture():
+def retrieve_partition_found_resp_fixture():
     """Load partition response test fixture data."""
-    j = json.load(open("./tests/fixtures/partitions_list_result.json"))
+    j = json.load(open("./tests/fixtures/partition_found_result.json"))
     return j
 
 
-def retrieve_expected_partions_tree():
+def retrieve_partition_not_found_resp_fixture():
     """Load parition tree from fixture data."""
-    j = json.load(open("./tests/fixtures/partition_map.json"))
+    j = json.load(open("./tests/fixtures/no_partition_found_result.json"))
     return j
 
 
@@ -41,32 +41,18 @@ def mock_wait_for_completion(*args, **kwargs):
     return "SUCCEEDED"
 
 
-# Monkeypatch func for results func to just respond with fixture
-def mock_results(*args, **kwargs):
-    return retrieve_partition_resp_fixture()
+# Monkeypatch fund for results when partition is found
+def mock_result_found(*args, **kwargs):
+    return retrieve_partition_found_resp_fixture()
 
 
-def test_get_partitions(monkeypatch):
-    # Set attributes
-    monkeypatch.setattr(Athena, "results", mock_results)
-    monkeypatch.setattr(Athena, "wait_for_completion", mock_wait_for_completion)
-    monkeypatch.setattr(Athena, "execute_query", mock_execute_query)
-
-    # Create athena_client
-    athena_client = Athena(database="test", output_loc="s3://test/foo/bar")
-
-    # Create table_client
-    table_client = TablePartitions(
-        athena_client, "foo", {0: "region", 1: "year", 2: "month", 3: "day"}
-    )
-
-    # Assert!
-    assert table_client.partitions == retrieve_expected_partions_tree()
+# Monkeypatch fund for results when partition is found
+def mock_result_not_found(*args, **kwargs):
+    return retrieve_partition_not_found_resp_fixture()
 
 
 def test_query_builder(monkeypatch):
     # Set attributes
-    monkeypatch.setattr(Athena, "results", mock_results)
     monkeypatch.setattr(Athena, "wait_for_completion", mock_wait_for_completion)
     monkeypatch.setattr(Athena, "execute_query", mock_execute_query)
 
@@ -88,28 +74,35 @@ def test_query_builder(monkeypatch):
     )
 
 
-def test_check_partition(monkeypatch):
+def test_check_partition_found(monkeypatch):
     # Set attributes
-    monkeypatch.setattr(Athena, "results", mock_results)
+    monkeypatch.setattr(Athena, "results", mock_result_found)
     monkeypatch.setattr(Athena, "wait_for_completion", mock_wait_for_completion)
     monkeypatch.setattr(Athena, "execute_query", mock_execute_query)
 
     # Create athena_client
     athena_client = Athena(database="test", output_loc="s3://test/foo/bar")
 
-    def mock_partitions(*args, **kwargs):
-        return retrieve_expected_partions_tree()
+    # Create table_client
+    table_client = TablePartitions(
+        athena_client, "foo", {0: "region", 1: "year", 2: "month", 3: "day"}
+    )
 
-    monkeypatch.setattr(TablePartitions, "_get_partitions", mock_partitions)
+    assert table_client.check_for_partition(["us-west-2", "2020", "04", "12"]) is True
+
+
+def test_check_partition_not_found(monkeypatch):
+    # Set attributes
+    monkeypatch.setattr(Athena, "results", mock_result_not_found)
+    monkeypatch.setattr(Athena, "wait_for_completion", mock_wait_for_completion)
+    monkeypatch.setattr(Athena, "execute_query", mock_execute_query)
+
+    # Create athena_client
+    athena_client = Athena(database="test", output_loc="s3://test/foo/bar")
 
     # Create table_client
     table_client = TablePartitions(
         athena_client, "foo", {0: "region", 1: "year", 2: "month", 3: "day"}
     )
 
-    query_string = table_client._build_add_partition_query(
-        bucket_loc="s3://foo/bar", new_partition=["us-west-2", "2020", "03", "01"]
-    )
-
     assert table_client.check_for_partition(["us-west-2", "2020", "04", "25"]) is False
-    assert table_client.check_for_partition(["us-east-1", "2020", "03", "30"]) is True

@@ -20,28 +20,9 @@ TODO: Write me
 
 ## TO DO:
 - [x] Add Codefresh for CI
-- [ ] Rebuild partition checking logic to use better query
+- [x] Rebuild partition checking logic to use better query
 - [ ] Add aggressive retry logic when query is stuck in queued for longer than N periods
 - [ ] Finish unit tests
 - [ ] Bootstrap Install
 - [ ] Auto set expiration to 180 days
 - [ ] Log Forwarder to a single "security" account?
-
----
-
-New Query for checking partition (see todo item above):
-
-```
-SELECT kv['region'] AS region, kv['year'] AS year, kv['month'] AS month, kv['day'] AS day
-FROM
-    (SELECT partition_number,
-         map_agg(partition_key,
-         partition_value) kv
-    FROM information_schema.__internal_partitions__
-    WHERE table_schema = '<table_schema>'
-            AND table_name = '<table_name>'
-    GROUP BY  partition_number)
-WHERE kv['region'] = '<region>' AND kv['year'] = '<year>' AND kv['month'] = '<month>' AND kv['day'] = '<day>'
-```
-
-If response is none, create the partition!
