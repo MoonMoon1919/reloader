@@ -14,7 +14,7 @@ import sys
 import boto3
 from botocore.exceptions import ClientError
 
-# Move this to OS environ or SSM parameter store
+# Retrieve env vars
 bucket = os.environ.get("BUCKET")
 log_location = os.environ.get("LOG_LOCATION")
 account_id = os.environ.get("ACCOUNT_ID")
@@ -102,14 +102,14 @@ class Athena:
             execution_id=execution_id, execution_res_loc=execution_res_location
         )
 
-    def execute_query(self, query: str) -> dict:
+    def execute_query(self, query: str) -> ExecutionResponse:
         """Executes an athena query.
 
         Args:
             - query: a sql query to be executed in athena
 
         Returns:
-            - resp: response from AWS Athena API with execution id
+            - resp: ExecutionResponse object parsed from AWS Athena API response
         """
         try:
             resp = self.client.start_query_execution(
@@ -120,7 +120,7 @@ class Athena:
         except ClientError as e:
             raise e
         else:
-            return resp
+            return self._process_execution_response(execution_response=resp)
 
     def succeeded(self, execution_response: ExecutionResponse, query: str) -> dict:
         """Handler for query succeeded.
@@ -195,9 +195,6 @@ class Athena:
             - Dict
         """
         execution_response = self.execute_query(query=query)
-        execution_response = self._process_execution_response(
-            execution_response=execution_response
-        )
         status = self.wait_for_completion(execution_response=execution_response)
 
         # Handle the status of the query dynamically

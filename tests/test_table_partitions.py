@@ -8,14 +8,14 @@ import json
 # Import external libs
 import pytest
 
-from reloader.main import TablePartitions, Athena
+from reloader.main import TablePartitions, Athena, ExecutionResponse
 
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 
 
 def retrieve_exec_resp_fixture():
     """Load execution response test fixture data."""
-    j = json.load(open("./tests/fixtures/start_query_resp.json"))
+    j = json.load(open("./tests/fixtures/execution_resp_obj.json"))
     return j
 
 
