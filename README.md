@@ -23,6 +23,9 @@ TODO: Write me
 - [ ] Rebuild partition checking logic to use better query
 - [ ] Add aggressive retry logic when query is stuck in queued for longer than N periods
 - [ ] Finish unit tests
+- [ ] Bootstrap Install
+- [ ] Auto set expiration to 180 days
+- [ ] Log Forwarder to a single "security" account?
 
 ---
 
