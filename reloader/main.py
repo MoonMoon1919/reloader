@@ -38,6 +38,8 @@ class ExecutionResponse(TypedDict):
 
 
 class Athena:
+    """Class for interacting with AWS Athena."""
+
     def __init__(self, database: str, output_loc: str) -> None:
         self.database = database
         self.output_loc = output_loc
@@ -58,6 +60,14 @@ class Athena:
             return results
 
     def wait_for_completion(self, execution_response: ExecutionResponse) -> str:
+        """Execute an Athena query and wait until it has succeeded, failed, or been cancelled.
+
+        Args:
+            - execution_response: an ExecutionResponse containing the execution ID
+
+        Returns:
+            - str: from ["SUCCEEDED", "FAILED", "CANCELLED"]
+        """
         status = "RUNNING"
 
         while status not in ["SUCCEEDED", "FAILED", "CANCELLED"]:
@@ -73,7 +83,18 @@ class Athena:
 
         return status
 
-    def process_execution_response(self, execution_response: dict) -> ExecutionResponse:
+    def _process_execution_response(
+        self, execution_response: dict
+    ) -> ExecutionResponse:
+        """Takes the execution response from Athena's start_query_execution call
+        and converts it to a ExecutionResponse object
+
+        Args:
+            - execution_response: The execution response from start_query_execution
+
+        Returns:
+            - ExecutionResponse object
+        """
         execution_id = execution_response.get("QueryExecutionId")
         execution_res_location = output_loc + execution_id + ".txt"
 
@@ -86,6 +107,9 @@ class Athena:
 
         Args:
             - query: a sql query to be executed in athena
+
+        Returns:
+            - resp: response from AWS Athena API with execution id
         """
         try:
             resp = self.client.start_query_execution(
@@ -98,12 +122,15 @@ class Athena:
         else:
             return resp
 
-    def succeeded(self, execution_response, query) -> dict:
+    def succeeded(self, execution_response: ExecutionResponse, query: str) -> dict:
         """Handler for query succeeded.
 
         Args:
             - execution_response: A ExecutionResponse
             - query: a valid query string
+
+        Returns:
+            - dictionary returned from self.results function
         """
         logger.info(
             {
@@ -114,12 +141,15 @@ class Athena:
         )
         return self.results(execution_response)
 
-    def cancelled(self, execution_response, query) -> bool:
+    def cancelled(self, execution_response: ExecutionResponse, query: str):
         """Handler for query cancelled.
 
         Args:
             - execution_response: A ExecutionResponse
             - query: a valid query string
+
+        Returns:
+            - Exception
         """
         logger.info(
             {
@@ -133,12 +163,15 @@ class Athena:
 
         raise Exception(f"Query cancelled. Query Execution ID: {execution_id}")
 
-    def failed(self, execution_response, query) -> bool:
+    def failed(self, execution_response: ExecutionResponse, query: str):
         """Handler for query failed.
 
         Args:
             - execution_response: A ExecutionResponse
             - query: a valid query string
+
+        Returns:
+            - Exception
         """
         logger.info(
             {
@@ -157,9 +190,12 @@ class Athena:
 
         Args:
             - query: a valid query string
+
+        Returns:
+            - Dict
         """
         execution_response = self.execute_query(query=query)
-        execution_response = self.process_execution_response(
+        execution_response = self._process_execution_response(
             execution_response=execution_response
         )
         status = self.wait_for_completion(execution_response=execution_response)
@@ -180,8 +216,16 @@ class TablePartitions:
         self.table = table
         self.schema = schema
 
-    def _build_add_partition_query(self, bucket_loc, new_partition):
-        """Builds a query to add a new partition."""
+    def _build_add_partition_query(self, bucket_loc: str, new_partition: list) -> str:
+        """Builds a query to add a new partition.
+
+        Args:
+            - bucket_loc: A valid path in an S3 bucket
+            - new_partition: list of partition items (eg: ['ap-south-1', '2020', '04', '01'])
+
+        Returns:
+            - str: a SQL query as a string to add a new partition from a valid path
+        """
         n = len(new_partition) - 1
 
         location_statement = f"s3://{bucket_loc}/"
@@ -200,8 +244,16 @@ class TablePartitions:
 
         return query
 
-    def add_partition(self, bucket_loc: str, new_partition: str):
-        """Add a partition to the table."""
+    def add_partition(self, bucket_loc: str, new_partition: list) -> dict:
+        """Add a partition to the table.
+
+        Args:
+            - bucket_loc: A valid path in an S3 bucket
+            - new_partition: list of partition items (eg: ['ap-south-1', '2020', '04', '01'])
+
+        Returns:
+            - dict: results from self.athena_client.execute_and_wait()
+        """
         query = self._build_add_partition_query(
             bucket_loc=bucket_loc, new_partition=new_partition
         )
@@ -209,6 +261,18 @@ class TablePartitions:
         return self.athena_client.execute_and_wait(query=query)
 
     def _get_partition_query(self, region: str, year: str, month: str, day: str) -> str:
+        """Builds a query to check if a particular partition exists already.
+
+        Args:
+            - region: an AWS region
+            - year: a year as a string
+            - month: a month (eg: 04) as a string
+            - day: a day of a month (eg: 01) as a string:
+
+        Returns:
+            - str: A valid query for checking if a partition exists
+        """
+
         return f"""SELECT kv['region'] AS region, kv['year'] AS year, kv['month'] AS month, kv['day'] AS day
         FROM
             (SELECT partition_number,
@@ -229,6 +293,12 @@ class TablePartitions:
         This is a safe binary operation because the first result will always be a header row
         All sequential results will be matched data, so we can assume if len(results["Rows"] > 1)
         then the partition exists
+
+        Args:
+            - results: dictionary of results from athena
+
+        Returns:
+            - bool: True if more than header row is returned, False if not (this means partition exists)
         """
         # This query is very specific so we can count on the paginator only returning a single page
         l = len(results[0]["Rows"])
@@ -240,7 +310,14 @@ class TablePartitions:
         return True
 
     def check_for_partition(self, new_partition: list) -> bool:
-        """Check if a new partition is already in the partition map."""
+        """Check if a new partition is already in the partition map.
+
+        Args:
+            - new_partition: a list determined from s3 event input (ex: ['ap-south-1', '2020', '04', '01])
+
+        Returns:
+            - bool: True if partition exists, False if not
+        """
         kwargs = {}
 
         # Load the array into a dictionary
@@ -260,7 +337,7 @@ class TablePartitions:
 class Event:
     """Object representing an event from S3."""
 
-    def __init__(self, event) -> None:
+    def __init__(self, event: dict) -> None:
         for k, v in event.items():
             if isinstance(v, dict):
                 nu_v = Event(v)
@@ -273,12 +350,15 @@ class Event:
 athena = Athena(database=database, output_loc=output_loc)
 
 
-def lambda_handler(event, context):
+def lambda_handler(event, context) -> bool:
     """Event handler that handles S3 Put events for new Cloudtrail Logs objects.
 
     Args:
         - event: Event coming from S3
         - context: context of the lambda execution
+
+    Returns:
+        - bool
     """
     # TODO: Create this dynamically..
     schema = {0: "region", 1: "year", 2: "month", 3: "day"}
