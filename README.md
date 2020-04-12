@@ -15,3 +15,10 @@ A lambda to automatically reload new partitions into Athena for Cloudtrail logs
 
 ## How To
 TODO: Write me
+
+---
+
+## TO DO:
+- [x] Add Codefresh for CI
+- [ ] Finish unit tests
+- [ ] Add aggressive retry logic when query is stuck in queued for longer than N periods
