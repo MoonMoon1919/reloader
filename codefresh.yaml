@@ -3,7 +3,6 @@ stages:
   - "clone"
   - "build"
   - "test"
-  - "deploy"
 steps:
   main_clone:
     type: "git-clone"
