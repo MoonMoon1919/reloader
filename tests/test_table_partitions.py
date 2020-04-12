@@ -6,7 +6,6 @@ from os import path
 import json
 
 # Import external libs
-import botocore
 import pytest
 
 from reloader.main import TablePartitions, Athena
