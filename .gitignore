@@ -1,3 +1,4 @@
 .vscode/*
 reloader/scratch.py
 dev_env_vars.sh
+**/__pycache__
