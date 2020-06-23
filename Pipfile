@@ -10,6 +10,7 @@ safety = "*"
 
 [packages]
 boto3 = "*"
+pipenv = "*"
 
 [requires]
 python_version = "3.8"
