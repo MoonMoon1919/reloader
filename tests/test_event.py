@@ -12,14 +12,14 @@ sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 
 def retrieve_fixture():
     """Load test fixture data."""
-    j = json.load(open("./tests/fixtures/put_event.json"))
+    j = json.load(open("./tests/fixtures/crond_event.json"))
     return j
 
 
 def test_event_object():
     """Loads fixture data into event."""
     data = retrieve_fixture()
-    event = Event(data["Records"][0])
+    event = Event(event=data)
 
-    assert event.s3.bucket.name == "test-cloudtrail"
-    assert event.s3.object.eTag == "abcdefghijklmnopqrstuvwxyz12345675"
+    assert event.event_month == 9
+    assert event.event_year == 2020

@@ -3,10 +3,11 @@ Automatically load newly created S3 prefixes into Athena.
 """
 
 # Import from std lib
+from datetime import datetime
 import logging
 import os
 from time import sleep
-from typing import TypedDict
+from typing import TypedDict, Optional
 import sys
 
 # Import from
@@ -15,7 +16,6 @@ from botocore.exceptions import ClientError
 
 # Retrieve env vars
 bucket = os.environ.get("BUCKET")
-log_location = os.environ.get("LOG_LOCATION")
 account_id = os.environ.get("ACCOUNT_ID")
 database = os.environ.get("DATABASE")
 table_name = os.environ.get("TABLE_NAME")
@@ -321,15 +321,32 @@ class TablePartitions:
 
 
 class Event:
-    """Object representing an event from S3."""
+    """Object representing an event from an EventBridge (cloudwatch) timed event."""
 
     def __init__(self, event: dict) -> None:
         for k, v in event.items():
-            if isinstance(v, dict):
-                nu_v = Event(v)
-                setattr(self, k, nu_v)
-            else:
-                setattr(self, k, v)
+            setattr(self, k.replace("-", "_"), v)
+
+    @property
+    def event_month(self):
+        return self._convert_to_datetime(getattr(self, "time", None)).month
+
+    @property
+    def event_year(self):
+        return self._convert_to_datetime(getattr(self, "time", None)).year
+
+    @property
+    def event_day(self):
+        return self._convert_to_datetime(getattr(self, "time", None)).day
+
+    def _convert_to_datetime(self, timestamp: str) -> Optional[datetime]:
+        """Receives time in %Y-%m-%dT%H:%M:%S.%fZ format and returns float of seconds since epoch"""
+        if timestamp:
+            time = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S%fZ")
+
+            return time
+
+        return None
 
 
 # Instantiate the client outside of the scope of the handler so it gets cached
@@ -350,20 +367,25 @@ def lambda_handler(event, context) -> bool:
     schema = {0: "region", 1: "year", 2: "month", 3: "day"}
 
     # Keep below
-    bucket_loc = f"{bucket}/{log_location}/{account_id}/CloudTrail/"
+    bucket_loc = f"{bucket}/AWSLogs/{account_id}/CloudTrail/"
 
     # Create the table client
     table = TablePartitions(athena_client=athena, table=table_name, schema=schema)
 
-    # Load the event into an event object
-    event = Event(event["Records"][0])
-    new_partition = event.s3.object.key.split("/")[3:-1]
+    event = Event(event=event)
+
+    print(bucket_loc)
+    print(table)
+    print(event.event_month)
+    print(event.event_day)
+    print(event.event_year)
 
     # Check the table, add or do not
+    """
     if table.check_for_partition(new_partition):
         logger.info({"response": "partition_exists", "status": "passing"})
     else:
         logger.info({"response": "partition_does_not_exist", "status": "creating"})
-        table.add_partition(bucket_loc, new_partition)
-
+        # table.add_partition(bucket_loc, new_partition)
+    """
     return True
