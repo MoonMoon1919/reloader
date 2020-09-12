@@ -1,0 +1,45 @@
+{
+    "ResponseMetadata": {
+        "RequestId": "XXXXXXXXXXXXXXXX",
+        "HostId": "Jbg/XXXXXXXXXXXXXXXXXXXXX+ZZZZZZZZZZZZZZZZZZZZZZ+AEifL5JYZv9V8d2RWmSveYl90E=",
+        "HTTPStatusCode": 200,
+        "HTTPHeaders": {
+            "x-amz-id-2": "Jbg/XXXXXXXXXXXXXXXXXXXXX+ZZZZZZZZZZZZZZZZZZZZZZ+AEifL5JYZv9V8d2RWmSveYl90E=",
+            "x-amz-request-id": "XXXXXXXXXXXXXXXX",
+            "date": "Sat, 12 Sep 2020 20:27:01 GMT",
+            "content-length": "476",
+            "server": "AmazonS3"
+        },
+        "RetryAttempts": 0
+    },
+    "Rules": [
+        {
+            "Expiration": {
+                "Days": 90
+            },
+            "ID": "Lifecycle",
+            "Filter": {
+                "Prefix": ""
+            },
+            "Status": "Enabled",
+            "Transitions": [
+                {
+                    "Days": 30,
+                    "StorageClass": "STANDARD_IA"
+                }
+            ],
+            "NoncurrentVersionTransitions": [
+                {
+                    "NoncurrentDays": 30,
+                    "StorageClass": "STANDARD_IA"
+                }
+            ],
+            "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 90
+            },
+            "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 7
+            }
+        }
+    ]
+}

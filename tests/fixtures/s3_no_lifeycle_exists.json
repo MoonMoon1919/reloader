@@ -1,0 +1,21 @@
+{
+    "Error": {
+        "Code": "NoSuchLifecycleConfiguration",
+        "Message": "The lifecycle configuration does not exist",
+        "BucketName": "mmoon-cloudtrail"
+    },
+    "ResponseMetadata": {
+        "RequestId": "04F23A3EDAAF5A21, 04F23A3EDAAF5A21",
+        "HostId": "YRpy6u5Z4khEDyNGQAw2jAhIGtLS9fIYs6/MvBbYHID1wfL8z9VXogCeLuCTGeclERTmx11nRuE=, YRpy6u5Z4khEDyNGQAw2jAhIGtLS9fIYs6/MvBbYHID1wfL8z9VXogCeLuCTGeclERTmx11nRuE=",
+        "HTTPStatusCode": 404,
+        "HTTPHeaders": {
+            "x-amz-id-2": "YRpy6u5Z4khEDyNGQAw2jAhIGtLS9fIYs6/MvBbYHID1wfL8z9VXogCeLuCTGeclERTmx11nRuE=, YRpy6u5Z4khEDyNGQAw2jAhIGtLS9fIYs6/MvBbYHID1wfL8z9VXogCeLuCTGeclERTmx11nRuE=",
+            "x-amz-request-id": "04F23A3EDAAF5A21, 04F23A3EDAAF5A21",
+            "date": "Sat, 12 Sep 2020 20:30:43 GMT",
+            "content-type": "application/xml",
+            "content-length": "290",
+            "server": "AmazonS3"
+        },
+        "RetryAttempts": 0
+    }
+}
