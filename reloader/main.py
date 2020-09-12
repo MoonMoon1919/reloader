@@ -3,7 +3,6 @@ Automatically load newly created S3 prefixes into Athena.
 """
 
 # Import from std lib
-from functools import cached_property
 import logging
 import os
 from time import sleep
@@ -49,9 +48,7 @@ class Athena:
 
     def results(self, execution_response: ExecutionResponse) -> dict:
         try:
-            resp = self.paginator.paginate(
-                QueryExecutionId=execution_response["execution_id"]
-            )
+            resp = self.paginator.paginate(QueryExecutionId=execution_response["execution_id"])
         except ClientError as e:
             raise e
         else:
@@ -72,9 +69,7 @@ class Athena:
 
         while status not in ["SUCCEEDED", "FAILED", "CANCELLED"]:
             try:
-                resp = self.client.get_query_execution(
-                    QueryExecutionId=execution_response["execution_id"]
-                )
+                resp = self.client.get_query_execution(QueryExecutionId=execution_response["execution_id"])
             except ClientError as e:
                 raise e
             else:
@@ -83,9 +78,7 @@ class Athena:
 
         return status
 
-    def _process_execution_response(
-        self, execution_response: dict
-    ) -> ExecutionResponse:
+    def _process_execution_response(self, execution_response: dict) -> ExecutionResponse:
         """Takes the execution response from Athena's start_query_execution call
         and converts it to a ExecutionResponse object
 
@@ -98,9 +91,7 @@ class Athena:
         execution_id = execution_response.get("QueryExecutionId")
         execution_res_location = output_loc + execution_id + ".txt"
 
-        return ExecutionResponse(
-            execution_id=execution_id, execution_res_loc=execution_res_location
-        )
+        return ExecutionResponse(execution_id=execution_id, execution_res_loc=execution_res_location)
 
     def execute_query(self, query: str) -> ExecutionResponse:
         """Executes an athena query.
@@ -251,9 +242,7 @@ class TablePartitions:
         Returns:
             - dict: results from self.athena_client.execute_and_wait()
         """
-        query = self._build_add_partition_query(
-            bucket_loc=bucket_loc, new_partition=new_partition
-        )
+        query = self._build_add_partition_query(bucket_loc=bucket_loc, new_partition=new_partition)
 
         return self.athena_client.execute_and_wait(query=query)
 
@@ -298,10 +287,10 @@ class TablePartitions:
             - bool: True if more than header row is returned, False if not (this means partition exists)
         """
         # This query is very specific so we can count on the paginator only returning a single page
-        l = len(results[0]["Rows"])
+        row_length = len(results[0]["Rows"])
 
         # If l == 1, only the header row was returned, so the partition does not exist
-        if l == 1:
+        if row_length == 1:
             return False
 
         return True
@@ -361,7 +350,6 @@ def lambda_handler(event, context) -> bool:
     schema = {0: "region", 1: "year", 2: "month", 3: "day"}
 
     # Keep below
-    ignore_path = f"{log_location}/{account_id}/Cloudtrail"
     bucket_loc = f"{bucket}/{log_location}/{account_id}/CloudTrail/"
 
     # Create the table client

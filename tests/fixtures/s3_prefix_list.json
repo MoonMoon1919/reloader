@@ -1,0 +1,74 @@
+{
+    "ResponseMetadata": {
+        "RequestId": "XXXXXXXXXXXX",
+        "HostId": "u5xp+XXXXXXXXXXXXXXXX/YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY/o=",
+        "HTTPStatusCode": 200,
+        "HTTPHeaders": {
+            "x-amz-id-2": "u5xp+XXXXXXXXXXXXXXXX/YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY/o=",
+            "x-amz-request-id": "XXXXXXXXXXXX",
+            "date": "Sat, 12 Sep 2020 19:15:41 GMT",
+            "x-amz-bucket-region": "us-west-2",
+            "content-type": "application/xml",
+            "transfer-encoding": "chunked",
+            "server": "AmazonS3"
+        },
+        "RetryAttempts": 0
+    },
+    "IsTruncated": false,
+    "Marker": "",
+    "Name": "cloudtrail",
+    "Prefix": "AWSLogs/123456789102/CloudTrail/",
+    "Delimiter": "/",
+    "MaxKeys": 1000,
+    "CommonPrefixes": [
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/ap-northeast-1/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/ap-northeast-2/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/ap-south-1/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/ap-southeast-1/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/ap-southeast-2/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/ca-central-1/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/eu-central-1/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/eu-north-1/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/eu-west-1/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/eu-west-2/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/eu-west-3/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/sa-east-1/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/us-east-1/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/us-east-2/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/us-west-1/"
+        },
+        {
+            "Prefix": "AWSLogs/123456789102/CloudTrail/us-west-2/"
+        }
+    ],
+    "EncodingType": "url"
+}

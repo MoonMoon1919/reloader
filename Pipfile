@@ -7,6 +7,7 @@ verify_ssl = true
 black = "*"
 pytest = "*"
 safety = "*"
+flake8 = "*"
 
 [packages]
 boto3 = "*"

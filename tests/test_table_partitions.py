@@ -60,9 +60,7 @@ def test_query_builder(monkeypatch):
     athena_client = Athena(database="test", output_loc="s3://test/foo/bar")
 
     # Create table_client
-    table_client = TablePartitions(
-        athena_client, "foo", {0: "region", 1: "year", 2: "month", 3: "day"}
-    )
+    table_client = TablePartitions(athena_client, "foo", {0: "region", 1: "year", 2: "month", 3: "day"})
 
     query_string = table_client._build_add_partition_query(
         bucket_loc="s3://foo/bar", new_partition=["us-west-2", "2020", "03", "01"]
@@ -84,9 +82,7 @@ def test_check_partition_found(monkeypatch):
     athena_client = Athena(database="test", output_loc="s3://test/foo/bar")
 
     # Create table_client
-    table_client = TablePartitions(
-        athena_client, "foo", {0: "region", 1: "year", 2: "month", 3: "day"}
-    )
+    table_client = TablePartitions(athena_client, "foo", {0: "region", 1: "year", 2: "month", 3: "day"})
 
     assert table_client.check_for_partition(["us-west-2", "2020", "04", "12"]) is True
 
@@ -101,8 +97,6 @@ def test_check_partition_not_found(monkeypatch):
     athena_client = Athena(database="test", output_loc="s3://test/foo/bar")
 
     # Create table_client
-    table_client = TablePartitions(
-        athena_client, "foo", {0: "region", 1: "year", 2: "month", 3: "day"}
-    )
+    table_client = TablePartitions(athena_client, "foo", {0: "region", 1: "year", 2: "month", 3: "day"})
 
     assert table_client.check_for_partition(["us-west-2", "2020", "04", "25"]) is False

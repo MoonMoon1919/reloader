@@ -37,6 +37,11 @@ steps:
         image: "${{build}}"
         commands:
           - "make check/format"
+      run_lint:
+        title: "Run Formatting Check"
+        image: "${{build}}"
+        commands:
+          - "make lint"
     when:
       condition:
         all:
