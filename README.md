@@ -19,10 +19,6 @@ TODO: Write me
 ---
 
 New Flow
-- Run at midnight UTC
-- Get list of known regions with cloudtrail data (from s3 bucket)
-- Generate add partition statements
-- Execute add partition statements
 - Generate date for `expiration_days` days ago
 - Generate delete partition statements
 - Execute delete partition statements
@@ -30,11 +26,10 @@ New Flow
 ---
 
 ## TO DO:
-- [ ] Rewrite to handle based on Cron'd event
+- [x] Rewrite to handle based on Cron'd event
 - [ ] Add environment variable for `expiration_days`
 - [x] Add Codefresh for CI
 - [x] Rebuild partition checking logic to use better query
-- [ ] Add aggressive retry logic when query is stuck in queued for longer than N periods
+- [ ] Add retry logic when query is stuck in queued for longer than N periods
 - [x] Finish unit tests
 - [ ] Bootstrap Install
-- [ ] Auto set expiration to 180 days

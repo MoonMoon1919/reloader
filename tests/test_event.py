@@ -21,5 +21,6 @@ def test_event_object():
     data = retrieve_fixture()
     event = Event(event=data)
 
-    assert event.event_month == 9
-    assert event.event_year == 2020
+    assert event.event_month == "09"
+    assert event.event_day == "12"
+    assert event.event_year == "2020"

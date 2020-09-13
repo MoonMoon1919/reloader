@@ -6,7 +6,7 @@ import pytest
 import boto3
 from botocore.stub import Stubber
 
-from reloader.s3 import S3Helper
+from reloader.main import S3Helper
 
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 

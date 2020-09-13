@@ -4,6 +4,7 @@ Automatically load newly created S3 prefixes into Athena.
 
 # Import from std lib
 from datetime import datetime
+from functools import cached_property
 import logging
 import os
 from time import sleep
@@ -199,50 +200,53 @@ class TablePartitions:
     Methods allow for getting, checking if exists, and adding partitions.
     """
 
-    def __init__(self, athena_client, table, schema) -> None:
+    def __init__(self, athena_client, table) -> None:
         self.athena_client = athena_client
         self.table = table
-        self.schema = schema
 
-    def _build_add_partition_query(self, bucket_loc: str, new_partition: list) -> str:
+    def _build_partition_query(
+        self, bucket_loc: str, new_partition: dict, action_string: str = "IF NOT EXISTS"
+    ) -> str:
         """Builds a query to add a new partition.
 
         Args:
             - bucket_loc: A valid path in an S3 bucket
-            - new_partition: list of partition items (eg: ['ap-south-1', '2020', '04', '01'])
+            - new_partition: list of partition items (eg: {'region': 'ap-south-1', 'year': '2020', 'month': '04', 'day': '01'}) # noqa
 
         Returns:
             - str: a SQL query as a string to add a new partition from a valid path
         """
         n = len(new_partition) - 1
+        i = 0
 
         location_statement = f"s3://{bucket_loc}/"
 
         partition = ""
 
-        for i, d in enumerate(new_partition):
+        for k, v in new_partition.items():
             if i == n:
-                partition += f"{self.schema[i]}='{d}'"
+                partition += f"{k}='{v}'"
             else:
-                partition += f"{self.schema[i]}='{d}',"
+                partition += f"{k}='{v}',"
+                i += 1
 
-            location_statement += d + "/"
+            location_statement += v + "/"
 
-        query = f"ALTER TABLE {self.table} ADD PARTITION ({partition}) LOCATION '{location_statement}'"
+        query = f"ALTER TABLE {self.table} ADD {action_string} PARTITION ({partition}) LOCATION '{location_statement}'"  # noqa
 
         return query
 
-    def add_partition(self, bucket_loc: str, new_partition: list) -> dict:
+    def add_partition(self, bucket_loc: str, new_partition: dict) -> dict:
         """Add a partition to the table.
 
         Args:
             - bucket_loc: A valid path in an S3 bucket
-            - new_partition: list of partition items (eg: ['ap-south-1', '2020', '04', '01'])
+            - new_partition: list of partition items (eg: {'region': 'ap-south-1', 'year': '2020', 'month': '04', 'day': '01'}) # noqa
 
         Returns:
             - dict: results from self.athena_client.execute_and_wait()
         """
-        query = self._build_add_partition_query(bucket_loc=bucket_loc, new_partition=new_partition)
+        query = self._build_partition_query(bucket_loc=bucket_loc, new_partition=new_partition)
 
         return self.athena_client.execute_and_wait(query=query)
 
@@ -295,23 +299,16 @@ class TablePartitions:
 
         return True
 
-    def check_for_partition(self, new_partition: list) -> bool:
+    def check_for_partition(self, new_partition: dict) -> bool:
         """Check if a new partition is already in the partition map.
 
         Args:
-            - new_partition: a list determined from s3 event input (ex: ['ap-south-1', '2020', '04', '01])
+            - new_partition: a list determined from s3 event input (ex: {'region': 'ap-south-1', 'year': '2020', 'month': '04', 'day': '01'}) # noqa
 
         Returns:
             - bool: True if partition exists, False if not
         """
-        kwargs = {}
-
-        # Load the array into a dictionary
-        # Later we'll pass it to _get_partition_query and unpack in dynamically
-        for i, d in enumerate(new_partition):
-            kwargs[self.schema[i]] = d
-
-        query = self._get_partition_query(**kwargs)
+        query = self._get_partition_query(**new_partition)
 
         # Wait for query to complete, return results
         partition_results = self.athena_client.execute_and_wait(query=query)
@@ -328,16 +325,18 @@ class Event:
             setattr(self, k.replace("-", "_"), v)
 
     @property
-    def event_month(self):
-        return self._convert_to_datetime(getattr(self, "time", None)).month
+    def event_month(self) -> str:
+        month = self._convert_to_datetime(getattr(self, "time", None)).month
+        return str(month) if month >= 10 else str(month).zfill(2)
 
     @property
-    def event_year(self):
-        return self._convert_to_datetime(getattr(self, "time", None)).year
+    def event_year(self) -> str:
+        return str(self._convert_to_datetime(getattr(self, "time", None)).year)
 
     @property
-    def event_day(self):
-        return self._convert_to_datetime(getattr(self, "time", None)).day
+    def event_day(self) -> str:
+        day = self._convert_to_datetime(getattr(self, "time", None)).day
+        return str(day) if day >= 10 else str(day).zfill(2)
 
     def _convert_to_datetime(self, timestamp: str) -> Optional[datetime]:
         """Receives time in %Y-%m-%dT%H:%M:%S.%fZ format and returns float of seconds since epoch"""
@@ -353,6 +352,72 @@ class Event:
 athena = Athena(database=database, output_loc=output_loc)
 
 
+class S3Helper:
+    def __init__(self, bucket: str, account_id: str):
+        self._bucket = bucket
+        self._account_id = account_id
+        self._client = boto3.client("s3")
+
+    @cached_property
+    def regions(self):
+        return self._get_regions()
+
+    @cached_property
+    def experation_after_days(self):
+        return self._get_bucket_lifecycle_expiration()
+
+    def _get_bucket_lifecycle_expiration(self) -> Optional[int]:
+        """Given a bucket, retrieve the amount of days before expiration."""
+        try:
+            resp = self._client.get_bucket_lifecycle_configuration(Bucket=self._bucket)
+        except ClientError as error:
+            print(error.response)
+            return None
+        else:
+            return self._parse_lifeycle_rules_for_expiration(resp.get("Rules", []))
+
+    def _parse_lifeycle_rules_for_expiration(self, rule_list: list) -> Optional[int]:
+        """Iterate through list of rules to locate the expiration policy."""
+        for rule in rule_list:
+            if (expiration_days := rule.get("Expiration", {}).get("Days", None)) is not None:
+                return int(expiration_days)
+            else:
+                pass
+
+        return None
+
+    def _get_regions(self) -> list:
+        """Given a bucket, retrieve a list of common prefixes for cloudtrail logs."""
+        try:
+            resp = self._client.list_objects(
+                Bucket=self._bucket, Prefix=f"AWSLogs/{self._account_id}/CloudTrail/", Delimiter="/"
+            )
+        except ClientError as error:
+            print(error.response)
+            return []
+        else:
+            return self._retrieve_regions(prefixes=resp["CommonPrefixes"])
+
+    def _retrieve_regions(self, prefixes: list) -> list:
+        """Retrieve a list of regions from the returned common prefixes."""
+        regions = []
+
+        for prefix in prefixes:
+            pfix = prefix.get("Prefix", None)
+
+            if pfix:
+                splitter = pfix.split("/")
+
+                try:
+                    region = splitter[3]
+                except IndexError:
+                    print("unable to find region")
+                else:
+                    regions.append(region)
+
+        return regions
+
+
 def lambda_handler(event, context) -> bool:
     """Event handler that handles S3 Put events for new Cloudtrail Logs objects.
 
@@ -363,29 +428,26 @@ def lambda_handler(event, context) -> bool:
     Returns:
         - bool
     """
-    # TODO: Create this dynamically..
-    schema = {0: "region", 1: "year", 2: "month", 3: "day"}
-
-    # Keep below
     bucket_loc = f"{bucket}/AWSLogs/{account_id}/CloudTrail/"
-
-    # Create the table client
-    table = TablePartitions(athena_client=athena, table=table_name, schema=schema)
-
     event = Event(event=event)
 
-    print(bucket_loc)
-    print(table)
-    print(event.event_month)
-    print(event.event_day)
-    print(event.event_year)
+    helper = S3Helper(bucket=bucket, account_id=account_id)
 
-    # Check the table, add or do not
-    """
-    if table.check_for_partition(new_partition):
-        logger.info({"response": "partition_exists", "status": "passing"})
-    else:
-        logger.info({"response": "partition_does_not_exist", "status": "creating"})
-        # table.add_partition(bucket_loc, new_partition)
-    """
+    # Create the table client
+    table = TablePartitions(athena_client=athena, table=table_name)
+
+    for region in helper.regions:
+        new_partition = {
+            "region": region,
+            "year": event.event_year,
+            "month": event.event_month,
+            "day": event.event_day,
+        }
+
+        # Check the table, add or do not
+        if table.check_for_partition(new_partition):
+            logger.info({"response": "partition_exists", "status": "passing"})
+        else:
+            logger.info({"response": "partition_does_not_exist", "status": "creating"})
+            table.add_partition(bucket_loc, new_partition)
     return True
