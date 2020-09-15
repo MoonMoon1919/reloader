@@ -19,18 +19,6 @@ def retrieve_exec_resp_fixture():
     return j
 
 
-def retrieve_partition_found_resp_fixture():
-    """Load partition response test fixture data."""
-    j = json.load(open("./tests/fixtures/partition_found_result.json"))
-    return j
-
-
-def retrieve_partition_not_found_resp_fixture():
-    """Load parition tree from fixture data."""
-    j = json.load(open("./tests/fixtures/no_partition_found_result.json"))
-    return j
-
-
 # Monkeypatch func for execute_query func to just respond with fixture
 def mock_execute_query(*args, **kwargs):
     return retrieve_exec_resp_fixture()
@@ -39,16 +27,6 @@ def mock_execute_query(*args, **kwargs):
 # Monkeypatch func for wait_for_complete func to just respond "SUCCEEDED"
 def mock_wait_for_completion(*args, **kwargs):
     return "SUCCEEDED"
-
-
-# Monkeypatch fund for results when partition is found
-def mock_result_found(*args, **kwargs):
-    return retrieve_partition_found_resp_fixture()
-
-
-# Monkeypatch fund for results when partition is found
-def mock_result_not_found(*args, **kwargs):
-    return retrieve_partition_not_found_resp_fixture()
 
 
 def test_query_builder_add(monkeypatch):
