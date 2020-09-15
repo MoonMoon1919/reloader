@@ -427,19 +427,3 @@ def lambda_handler(event, context) -> bool:
             table.drop_partition(bucket_loc=bucket_loc, partition=old_partition)
 
     return True
-
-
-event = {
-    "version": "0",
-    "id": "5157956c-fc8c-6e06-8705-ba169f00d70c",
-    "detail-type": "Scheduled Event",
-    "source": "aws.events",
-    "account": "123456789012",
-    "time": "2020-09-13T21:28:37Z",
-    "region": "us-west-2",
-    "resources": ["arn:aws:events:us-west-2:123456789012:rule/Trigger-Every-5-Mins"],
-    "detail": {},
-}
-
-
-lambda_handler(event=event, context="foo")
