@@ -204,12 +204,7 @@ class TablePartition:
         self.athena_client = athena_client
         self.table = table
 
-    def _build_partition_query(
-        self,
-        bucket_loc: str,
-        partition: dict,
-        action_string: str,
-    ) -> str:
+    def _build_partition_query(self, bucket_loc: str, partition: dict, action_string: str) -> str:
         """Builds a query to add add or drop a partition.
 
         Args:
