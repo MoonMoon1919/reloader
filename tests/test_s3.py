@@ -88,3 +88,21 @@ def test_lifecycle_with_multi_rule_policy():
 
     with stubber:
         assert helper.experation_after_days == 90
+
+
+def test_no_lifecycle_policy():
+    """Test that expiration is parsed from a bucket with multiple rules."""
+    expected_params = {"Bucket": "cloudtrail"}
+    stubber.add_client_error(
+        method="get_bucket_lifecycle_configuration",
+        service_error_code="NoSuchLifecycleConfiguration",
+        service_message="The lifecycle configuration does not exist",
+        http_status_code=404,
+        expected_params=expected_params,
+    )
+
+    helper = S3Helper(bucket="cloudtrail", account_id="123456789012")
+    helper._client = client
+
+    with stubber:
+        assert helper.experation_after_days is None
