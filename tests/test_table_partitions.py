@@ -8,7 +8,7 @@ import json
 # Import external libs
 import pytest
 
-from reloader.main import TablePartitions, Athena, ExecutionResponse
+from reloader.main import TablePartition, Athena, ExecutionResponse
 
 sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
 
@@ -51,7 +51,7 @@ def mock_result_not_found(*args, **kwargs):
     return retrieve_partition_not_found_resp_fixture()
 
 
-def test_query_builder(monkeypatch):
+def test_query_builder_add(monkeypatch):
     # Set attributes
     monkeypatch.setattr(Athena, "wait_for_completion", mock_wait_for_completion)
     monkeypatch.setattr(Athena, "execute_query", mock_execute_query)
@@ -60,22 +60,22 @@ def test_query_builder(monkeypatch):
     athena_client = Athena(database="test", output_loc="s3://test/foo/bar")
 
     # Create table_client
-    table_client = TablePartitions(athena_client, "foo")
+    table_client = TablePartition(athena_client, "foo")
 
     query_string = table_client._build_partition_query(
-        bucket_loc="s3://foo/bar",
-        new_partition={"region": "us-west-2", "year": "2020", "month": "03", "day": "01"},
+        bucket_loc="foo/bar",
+        partition={"region": "us-west-2", "year": "2020", "month": "03", "day": "01"},
+        action_string="ADD",
     )
 
     assert (
         query_string
-        == "ALTER TABLE foo ADD IF NOT EXISTS PARTITION (region='us-west-2',year='2020',month='03',day='01') LOCATION 's3://s3://foo/bar/us-west-2/2020/03/01/'"
+        == "ALTER TABLE foo ADD IF NOT EXISTS PARTITION (region='us-west-2',year='2020',month='03',day='01') LOCATION 's3://foo/bar/us-west-2/2020/03/01/'"
     )
 
 
-def test_check_partition_found(monkeypatch):
+def test_query_builder_drop(monkeypatch):
     # Set attributes
-    monkeypatch.setattr(Athena, "results", mock_result_found)
     monkeypatch.setattr(Athena, "wait_for_completion", mock_wait_for_completion)
     monkeypatch.setattr(Athena, "execute_query", mock_execute_query)
 
@@ -83,27 +83,15 @@ def test_check_partition_found(monkeypatch):
     athena_client = Athena(database="test", output_loc="s3://test/foo/bar")
 
     # Create table_client
-    table_client = TablePartitions(athena_client, "foo")
+    table_client = TablePartition(athena_client, "foo")
 
-    assert (
-        table_client.check_for_partition({"region": "us-west-2", "year": "2020", "month": "04", "day": "12"})
-        is True
+    query_string = table_client._build_partition_query(
+        bucket_loc="foo/bar",
+        partition={"region": "us-west-2", "year": "2020", "month": "03", "day": "01"},
+        action_string="DROP",
     )
 
-
-def test_check_partition_not_found(monkeypatch):
-    # Set attributes
-    monkeypatch.setattr(Athena, "results", mock_result_not_found)
-    monkeypatch.setattr(Athena, "wait_for_completion", mock_wait_for_completion)
-    monkeypatch.setattr(Athena, "execute_query", mock_execute_query)
-
-    # Create athena_client
-    athena_client = Athena(database="test", output_loc="s3://test/foo/bar")
-
-    # Create table_client
-    table_client = TablePartitions(athena_client, "foo")
-
     assert (
-        table_client.check_for_partition({"region": "us-west-2", "year": "2020", "month": "04", "day": "25"})
-        is False
+        query_string
+        == "ALTER TABLE foo DROP IF EXISTS PARTITION (region='us-west-2',year='2020',month='03',day='01')"
     )

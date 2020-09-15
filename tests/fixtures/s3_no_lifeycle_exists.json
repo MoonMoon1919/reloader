@@ -2,7 +2,7 @@
     "Error": {
         "Code": "NoSuchLifecycleConfiguration",
         "Message": "The lifecycle configuration does not exist",
-        "BucketName": "mmoon-cloudtrail"
+        "BucketName": "cloudtrail"
     },
     "ResponseMetadata": {
         "RequestId": "04F23A3EDAAF5A21, 04F23A3EDAAF5A21",

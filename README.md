@@ -7,9 +7,9 @@ A lambda to automatically reload new partitions into Athena for Cloudtrail logs
 ---
 
 ## Why
-- Athena can be extremely expensive at scale
+- Athena can be expensive at scale
 - Adding partitions by region, year, day, and month drastically reduces the amount of data you will (likely) query
-- Cloudtrail logs are extremely useful but companies rarely have them setup in a way that is convenient to query
+- Cloudtrail logs are useful but are rarely set up in a way that is convenient to query
 
 ---
 
@@ -18,16 +18,8 @@ TODO: Write me
 
 ---
 
-New Flow
-- Generate date for `expiration_days` days ago
-- Generate delete partition statements
-- Execute delete partition statements
-
----
-
 ## TO DO:
 - [x] Rewrite to handle based on Cron'd event
-- [ ] Add environment variable for `expiration_days`
 - [x] Add Codefresh for CI
 - [x] Rebuild partition checking logic to use better query
 - [ ] Add retry logic when query is stuck in queued for longer than N periods
