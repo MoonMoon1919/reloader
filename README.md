@@ -20,12 +20,12 @@ A lambda to automatically reload new partitions into Athena for Cloudtrail logs
 
 Envrionment Variables
 ```
-export BUCKET="<name of your cloudtrail logs S3 bucket>"
-export LOG_LOCATION="AWSLogs"
-export ACCOUNT_ID="<your account id>"
-export DATABASE="<name of athena database containing table>"
-export TABLE_NAME="cloudtrail_logs"
-export OUTPUT_LOC="s3://<athena output bucket>/<output loc>/"
+BUCKET="<name of your cloudtrail logs S3 bucket>"
+LOG_LOCATION="AWSLogs"
+ACCOUNT_ID="<your account id>"
+DATABASE="<name of athena database containing table>"
+TABLE_NAME="cloudtrail_logs"
+OUTPUT_LOC="s3://<athena output bucket>/<output loc>/"
 ```
 
 ---
@@ -36,3 +36,5 @@ export OUTPUT_LOC="s3://<athena output bucket>/<output loc>/"
 - [x] Rebuild partition checking logic to use better query
 - [x] Finish unit tests
 - [ ] Bootstrap Install
+- [ ] Optional quicksight dashboards
+- [ ] Alerts/Notifications
