@@ -74,7 +74,7 @@ def test_lifecycle_with_single_rule_policy():
     helper._client = client
 
     with stubber:
-        assert helper.experation_after_days == 90
+        assert helper.expiration_after_days == 90
 
 
 def test_lifecycle_with_multi_rule_policy():
@@ -87,7 +87,7 @@ def test_lifecycle_with_multi_rule_policy():
     helper._client = client
 
     with stubber:
-        assert helper.experation_after_days == 90
+        assert helper.expiration_after_days == 90
 
 
 def test_no_lifecycle_policy():
@@ -105,4 +105,4 @@ def test_no_lifecycle_policy():
     helper._client = client
 
     with stubber:
-        assert helper.experation_after_days is None
+        assert helper.expiration_after_days is None

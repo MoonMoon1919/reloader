@@ -323,7 +323,7 @@ class S3Helper:
         return self._get_regions()
 
     @cached_property
-    def experation_after_days(self):
+    def expiration_after_days(self):
         return self._get_bucket_lifecycle_expiration()
 
     def _get_bucket_lifecycle_expiration(self) -> Optional[int]:
@@ -407,9 +407,9 @@ def lambda_handler(event, context) -> bool:
         # Add the partition
         table.add_partition(bucket_loc=bucket_loc, partition=new_partition)
 
-        if helper.experation_after_days:
+        if helper.expiration_after_days:
             # N days ago
-            drop_after_expire_date = event.time - timedelta(days=helper.experation_after_days)
+            drop_after_expire_date = event.time - timedelta(days=helper.expiration_after_days)
 
             old_partition = {
                 "region": region,
