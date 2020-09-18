@@ -1,0 +1,38 @@
+{
+    "QueryExecution": {
+        "QueryExecutionId": "xxxxxxxx-yyyy-4a18-8a88-47512be8ee77",
+        "Query": "ALTER TABLE cloudtrail ADD IF NOT EXISTS PARTITION (region=\"ap-northeast-1\",year=\"2020\",month=\"09\",day=\"16\") LOCATION \"s3: //cloudtrail/AWSLogs/123456789012/CloudTrail/ap-northeast-1/2020/09/16/\"",
+        "StatementType": "DDL",
+        "ResultConfiguration": {
+            "OutputLocation": "s3://athena-results/cloudtrail/add_partition/xxxxxxxx-yyyy-4a18-8a88-47512be8ee77.txt"
+        },
+        "QueryExecutionContext": {
+            "Database": "default"
+        },
+        "Status": {
+            "State": "SUCCEEDED",
+            "SubmissionDateTime": "",
+            "CompletionDateTime": ""
+        },
+        "Statistics": {
+            "EngineExecutionTimeInMillis": 528,
+            "DataScannedInBytes": 0,
+            "TotalExecutionTimeInMillis": 636,
+            "QueryQueueTimeInMillis": 56,
+            "ServiceProcessingTimeInMillis": 52
+        },
+        "WorkGroup": "primary"
+    },
+    "ResponseMetadata": {
+        "RequestId": "xxxxxxxx-yyyy-zzzz-bd54-82a4e4cfec9b",
+        "HTTPStatusCode": 200,
+        "HTTPHeaders": {
+            "content-type": "application/x-amz-json-1.1",
+            "date": "Fri, 18 Sep 2020 00:12:13 GMT",
+            "x-amzn-requestid": "xxxxxxxx-yyyy-zzzz-bd54-82a4e4cfec9b",
+            "content-length": "1644",
+            "connection": "keep-alive"
+        },
+        "RetryAttempts": 0
+    }
+}
