@@ -9,7 +9,12 @@ function create_cloudtrail() {
     TRAIL_BUCKET_NAME=$5
 
     echo "Creating trail.."
-    aws cloudtrail create-trail --name "${TRAIL_NAME}" --s3-bucket-name "${TRAIL_BUCKET_NAME}" "${TRAIL_REGIONAL_STATUS}" "${TRAIL_INCLUDE_GLOBAL_EVENTS}" "${TRAIL_PERFORM_LOG_VALIDATION}" > /dev/null 2>&1 && echo "Trail created successfully" || echo "Unable to create trail, please check your permissions and try again"
+    aws cloudtrail create-trail \
+        --name "${TRAIL_NAME}" \
+        --s3-bucket-name "${TRAIL_BUCKET_NAME}" \
+        "${TRAIL_REGIONAL_STATUS}" \
+        "${TRAIL_INCLUDE_GLOBAL_EVENTS}" \
+        "${TRAIL_PERFORM_LOG_VALIDATION}" > /dev/null 2>&1 && echo "Trail created successfully" || echo "Unable to create trail, please check your permissions and try again"
 }
 
 function prepare_and_create_cloudtrail() {
@@ -137,7 +142,10 @@ function create_athena_table() {
     TABLE_DATA_CATALOG=$3
     QUERY_OUTPUT_LOC=$4
 
-    aws athena start-query-execution --query-string "${QUERY_STRING}" --query-execution-context Database="${TABLE_DATABASE}",Catalog="${TABLE_DATA_CATALOG}" --result-configuration OutputLocation="s3://${QUERY_OUTPUT_LOC}" > /dev/null 2>&1 && echo "Table created successfully" || echo "Unable to execute Athena query, please try again"
+    aws athena start-query-execution \
+        --query-string "${QUERY_STRING}" \
+        --query-execution-context Database="${TABLE_DATABASE}",Catalog="${TABLE_DATA_CATALOG}" \
+        --result-configuration OutputLocation="s3://${QUERY_OUTPUT_LOC}" > /dev/null 2>&1 && echo "Table created successfully" || echo "Unable to execute Athena query, please try again"
 }
 
 function prepare_and_execute_sql_statement() {
@@ -187,6 +195,63 @@ function prepare_and_execute_sql_statement() {
     create_athena_table "${QUERY_STRING}" "${TABLE_DATABASE}" "${TABLE_DATA_CATALOG}" "${QUERY_OUTPUT_LOC}"
 }
 
+function zip_lambda() {
+    # Clean up old
+    rm -f function.zip
+
+    # Zip new!
+    zip -j function.zip reloader/main.py
+}
+
+function prompt_for_lambda() {
+    while true; do
+        read -p "Would you like to setup the lambda (yes/no)? " YESNO
+
+        case $YESNO in
+            Yes|yes) prepare_and_create_lambda; break;;
+            No|no) "Passing on lambda setup.."; break;;
+            *) echo "Please answer yes or no";;
+        esac
+    done
+}
+
+function create_lambda() {
+    # https://docs.aws.amazon.com/cli/latest/reference/lambda/create-function.html
+    LAMBDA_NAME=$1
+    LAMBDA_ARN=$2
+
+    # Zip the code
+    zip_lambda
+
+    aws lambda create-function \
+        --function-name "${LAMBDA_NAME}" \
+        --runtime python3.8 \
+        --zip-file fileb://function.zip \
+        --handler main.lambda_handler \
+        --role "${LAMBDA_ARN}" > /dev/null 2>&1 && echo "Lambda created successfully" || "Unable to create lambda, please check your configuration and try again"
+}
+
+function prepare_and_create_lambda() {
+    # https://docs.aws.amazon.com/cli/latest/reference/lambda/create-function.html
+    while true; do
+        read -p "Please enter a name for your lambda: " LAMBDA_NAME
+
+        if [ ! -z "${LAMBDA_NAME}" ]; then
+            break
+        fi
+    done
+
+    while true; do
+        read -p "Please enter a valid role ARN for the lambda: " LAMBDA_ARN
+
+        if [ ! -z "${LAMBDA_ARN}" ]; then
+            break
+        fi
+    done
+
+    create_lambda "${LAMBDA_NAME}" "${LAMBDA_ARN}"
+}
 
 prompt_for_cloudtrail
 prompt_for_athena
+prompt_for_lambda
