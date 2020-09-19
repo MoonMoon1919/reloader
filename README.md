@@ -30,6 +30,30 @@ OUTPUT_LOC="s3://<athena output bucket>/<output loc>/"
 
 ---
 
-## TO DO:
-- [ ] Alerts/Notifications
-- [ ] Optional quicksight dashboards
+## Installation
+
+If you are using this on a personal account and don't require the use of an Infrastructure as Code tool (eg: Terraform, Cloudformation, CDK), feel free to use the bootstrap script from the main directory after cloning the repo. It will provision all the necessary infrastructure based on the given input.
+
+Note: Bootstrap script requires [you to have JQ pre-installed](https://stedolan.github.io/jq/)
+
+```
+#!/bin/bash
+./scripts/bootstrap.sh
+```
+
+Modules for Terraform, Cloudformation, or the CDK are out of the scope of this repo and are not on the current project roadmap. If you require the use of one of these tools please feel free to clone the code from this repo and provision the required infrastructure with whichever tool you require. A full list of required AWS resources is provided below.
+
+### Required AWS Resources
+
+- Two S3 buckets
+    - CloudTrail data
+    - for Athena Results
+- CloudTrail Trail (writing to S3)
+- EventBridge Event (running on cron schedule)
+- [Athena table with partitions](https://docs.aws.amazon.com/athena/latest/ug/cloudtrail-logs.html#create-cloudtrail-table) for region, year, month, day for CloudTrail data
+
+---
+
+### TODO:
+- [ ] Alerts or Slack notifications when partitions fail to create
+- [ ] Optional Quicksight dashboards
