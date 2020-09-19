@@ -128,7 +128,7 @@ function prompt_for_athena() {
 
         case $YESNO in
             Yes|yes) prepare_and_execute_sql_statement "${TRAIL_BUCKET_NAME}"; break;;
-            No|no) "Passing on Athena setup.."; break;;
+            No|no) echo "Passing on Athena setup.."; break;;
             *) echo "Please answer yes or no";;
         esac
     done
@@ -209,7 +209,7 @@ function prompt_for_lambda() {
 
         case $YESNO in
             Yes|yes) prepare_and_create_lambda; break;;
-            No|no) "Passing on lambda setup.."; break;;
+            No|no) "Passing on lambda and event rule setup.."; break;;
             *) echo "Please answer yes or no";;
         esac
     done
@@ -231,6 +231,64 @@ function create_lambda() {
         --role "${LAMBDA_ROLE_ARN}" > /dev/null 2>&1 && echo "Lambda created successfully" || "Unable to create lambda, please check your configuration and try again"
 }
 
+function create_lambda_role() {
+    # https://docs.aws.amazon.com/cli/latest/reference/iam/create-role.html
+    read -p "Enter a name for the lambda execution role (default: ReloaderRole): " ROLENAME
+
+    if [ -z "${ROLENAME}" ]; then
+        ROLENAME="ReloaderRole"
+    fi
+
+    echo "Creating role.."
+
+    LAMBDA_ROLE_ARN=$(aws iam create-role \
+        --path "/service-role/" \
+        --role-name "${ROLENAME}" \
+        --assume-role-policy-document file://scripts/assume_role_policy_doc.json | jq -r '.Role.Arn')
+
+    echo "Role created successfully"
+
+    # Kind of a hack but
+    # w/o sleep lambda will thow an InvalidParameterValueException
+    # stating that "The role defined for the function cannot be assumed by Lambda."
+    echo "Sleeping to allow role to propagate.."
+    sleep 5
+}
+
+function create_policy_doc() {
+    # https://docs.aws.amazon.com/cli/latest/reference/iam/create-policy.html
+    AWS_REGION=$(aws configure get region)
+    POLICYDOC=$(sed -e "s/\${AWS_REGION}/${AWS_REGION}/" -e "s/\${AWS_ACCOUNT_ID}/${AWS_ACCOUNT_ID}/" -e "s/\${QUERY_OUTPUT_LOC}/${QUERY_OUTPUT_LOC}/" -e "s/\${LAMBDA_NAME}/${LAMBDA_NAME}/" -e "s/\${TRAIL_BUCKET_NAME}/${TRAIL_BUCKET_NAME}/" ./scripts/iam_policy.tpl.json)
+
+    echo "${POLICYDOC}" > ./scripts/iam_policy.json
+}
+
+function attach_lambda_policy_to_role() {
+    # https://docs.aws.amazon.com/cli/latest/reference/iam/attach-role-policy.html
+    POLICYARN=$1
+
+    aws iam attach-role-policy \
+        --role-name "${ROLENAME}" \
+        --policy-arn "${POLICYARN}" > /dev/null 2>&1 && echo "Successfully attached policy to role" || echo "Unable to attach policy to role please check permissions and try again"
+}
+
+function create_lambda_policy() {
+    read -p "Enter a name for the lambda policy (default: ReloaderPolicy): " POLICYNAME
+
+    if [ -z "${POLICYNAME}" ]; then
+        POLICYNAME="ReloaderPolicy"
+    fi
+
+    echo "Creating IAM policy.."
+    create_policy_doc
+
+    POLICYARN=$(aws iam create-policy \
+        --policy-name "${POLICYNAME}" \
+        --policy-document file://scripts/iam_policy.json | jq -r '.Policy.Arn')
+
+    attach_lambda_policy_to_role "${POLICYARN}"
+}
+
 function prepare_and_create_lambda() {
     # https://docs.aws.amazon.com/cli/latest/reference/lambda/create-function.html
     while true; do
@@ -241,13 +299,8 @@ function prepare_and_create_lambda() {
         fi
     done
 
-    while true; do
-        read -p "Please enter a valid role ARN for the lambda: " LAMBDA_ROLE_ARN
-
-        if [ ! -z "${LAMBDA_ROLE_ARN}" ]; then
-            break
-        fi
-    done
+    create_lambda_role
+    create_lambda_policy
 
     create_lambda "${LAMBDA_NAME}" "${LAMBDA_ROLE_ARN}"
 }
@@ -263,18 +316,18 @@ function add_lambda_policy() {
         --action lambda:InvokeFunction \
         --statement-id EventTriggerLambda \
         --principal events.amazonaws.com \
-        --source-arn "${EVENT_SOURCE_ARN}" > /dev/null 2>&1 && echo "Lambda policy created successfully" || "Unable add event invoke permissions to lambda"
+        --source-arn "${EVENT_SOURCE_ARN}" > /dev/null 2>&1 && echo "Lambda policy created successfully" || echo "Unable add event invoke permissions to lambda"
 }
 
 function add_event_target() {
     # https://docs.aws.amazon.com/cli/latest/reference/events/put-targets.html
     echo "Adding event target.."
 
-    FUNCTION_ARN=$(aws lambda get-function --function-name athena-reloader | jq -r '.Configuration.FunctionArn')
+    FUNCTION_ARN=$(aws lambda get-function --function-name "${LAMBDA_NAME}" | jq -r '.Configuration.FunctionArn')
 
     aws events put-targets \
         --rule "EveryNightAtMidnight-Reloader" \
-        --targets "Id"="LambdaTarget","Arn"="${FUNCTION_ARN}" > /dev/null 2>&1 && echo "Rule target added successfully" || "Unable to add rule target, please check permissions and try again"
+        --targets "Id"="LambdaTarget","Arn"="${FUNCTION_ARN}" > /dev/null 2>&1 && echo "Rule target added successfully" || echo "Unable to add rule target, please check permissions and try again"
 }
 
 function add_event_rule() {
