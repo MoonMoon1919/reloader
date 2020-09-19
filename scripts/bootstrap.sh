@@ -218,7 +218,7 @@ function prompt_for_lambda() {
 function create_lambda() {
     # https://docs.aws.amazon.com/cli/latest/reference/lambda/create-function.html
     LAMBDA_NAME=$1
-    LAMBDA_ARN=$2
+    LAMBDA_ROLE_ARN=$2
 
     # Zip the code
     zip_lambda
@@ -228,7 +228,7 @@ function create_lambda() {
         --runtime python3.8 \
         --zip-file fileb://function.zip \
         --handler main.lambda_handler \
-        --role "${LAMBDA_ARN}" > /dev/null 2>&1 && echo "Lambda created successfully" || "Unable to create lambda, please check your configuration and try again"
+        --role "${LAMBDA_ROLE_ARN}" > /dev/null 2>&1 && echo "Lambda created successfully" || "Unable to create lambda, please check your configuration and try again"
 }
 
 function prepare_and_create_lambda() {
@@ -242,16 +242,57 @@ function prepare_and_create_lambda() {
     done
 
     while true; do
-        read -p "Please enter a valid role ARN for the lambda: " LAMBDA_ARN
+        read -p "Please enter a valid role ARN for the lambda: " LAMBDA_ROLE_ARN
 
-        if [ ! -z "${LAMBDA_ARN}" ]; then
+        if [ ! -z "${LAMBDA_ROLE_ARN}" ]; then
             break
         fi
     done
 
-    create_lambda "${LAMBDA_NAME}" "${LAMBDA_ARN}"
+    create_lambda "${LAMBDA_NAME}" "${LAMBDA_ROLE_ARN}"
+}
+
+function add_lambda_policy() {
+    # https://docs.aws.amazon.com/cli/latest/reference/lambda/add-permission.html
+    EVENT_SOURCE_ARN=$1
+
+    echo "Adding event permission to trigger lambda.."
+
+    aws lambda add-permission \
+        --function-name "${LAMBDA_NAME}" \
+        --action lambda:InvokeFunction \
+        --statement-id EventTriggerLambda \
+        --principal events.amazonaws.com \
+        --source-arn "${EVENT_SOURCE_ARN}" > /dev/null 2>&1 && echo "Lambda policy created successfully" || "Unable add event invoke permissions to lambda"
+}
+
+function add_event_target() {
+    # https://docs.aws.amazon.com/cli/latest/reference/events/put-targets.html
+    echo "Adding event target.."
+
+    FUNCTION_ARN=$(aws lambda get-function --function-name athena-reloader | jq -r '.Configuration.FunctionArn')
+
+    aws events put-targets \
+        --rule "EveryNightAtMidnight-Reloader" \
+        --targets "Id"="LambdaTarget","Arn"="${FUNCTION_ARN}" > /dev/null 2>&1 && echo "Rule target added successfully" || "Unable to add rule target, please check permissions and try again"
+}
+
+function add_event_rule() {
+    # https://docs.aws.amazon.com/cli/latest/reference/events/put-rule.html
+    echo "Creating Event rule to trigger every night at midnight.."
+
+    EVENT_SOURCE_ARN=$(aws events put-rule \
+        --name "EveryNightAtMidnight-Reloader" \
+        --schedule-expression "cron(0 0 * * ? *)" \
+        --state ENABLED | jq -r '.RuleArn')
+
+    echo "Event created successfully"
+
+    add_lambda_policy "${EVENT_SOURCE_ARN}"
+    add_event_target
 }
 
 prompt_for_cloudtrail
 prompt_for_athena
 prompt_for_lambda
+add_event_rule
