@@ -5,3 +5,4 @@ dev_env_vars.sh
 *.json-e
 function.zip
 scripts/iam_policy.json
+scripts/bucket_policy.json

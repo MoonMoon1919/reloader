@@ -1,5 +1,57 @@
 #!/bin/bash
 
+function prompt_existing_bucket() {
+    # Prompt for name of bucket to output files to
+    while true; do
+        read -p "Enter the name of an S3 bucket for CloudTrail to output to (must exist already): " TRAIL_BUCKET_NAME
+
+        if [ ! -z "${TRAIL_BUCKET_NAME}" ]; then
+            break
+        fi
+    done
+}
+
+function add_cloudtrail_bucket_policy() {
+    # https://docs.aws.amazon.com/cli/latest/reference/s3api/put-bucket-policy.html
+    TRAIL_BUCKET_NAME=$1
+    AWS_ACCOUNT_ID=$(aws sts get-caller-identity | jq -r '.Account')
+
+    echo "Creating bucket policy from template.."
+
+    POLICYDOC=$(sed -e "s/\${AWS_ACCOUNT_ID}/${AWS_ACCOUNT_ID}/" -e "s/\${TRAIL_BUCKET_NAME}/${TRAIL_BUCKET_NAME}/" ./scripts/bucket_policy.tpl.json)
+
+    echo "${POLICYDOC}" > ./scripts/bucket_policy.json
+
+    aws s3api put-bucket-policy --bucket "${TRAIL_BUCKET_NAME}" --policy file://scripts/bucket_policy.json > /dev/null 2>&1 && echo "Added bucket policy" || echo "Unable to add bucket policy, please check permissions and try again"
+}
+
+function create_new_bucket() {
+    # https://docs.aws.amazon.com/cli/latest/reference/s3/mb.html
+    while true; do
+        read -p "Enter a name for your CloudTrail logs S3 bucket: " TRAIL_BUCKET_NAME
+
+        if [ ! -z "${TRAIL_BUCKET_NAME}" ]; then
+            break
+        fi
+    done
+
+    echo "Creating S3 bucket.."
+
+    aws s3 mb s3://"${TRAIL_BUCKET_NAME}" > /dev/null 2>&1 && echo "Bucket created successfully" && add_cloudtrail_bucket_policy "${TRAIL_BUCKET_NAME}" || echo "Unable to create bucket, please check permissions and try again"
+}
+
+function prompt_to_create_bucket() {
+    while true; do
+        read -p "Would you like to create an S3 bucket to store Cloudtrail logs (yes/no)? " YESNO
+
+        case $YESNO in
+            Yes|yes) create_new_bucket; break;;
+            No|no) prompt_existing_bucket; break;;
+            *) echo "Please answer yes or no";;
+        esac
+    done
+}
+
 function create_cloudtrail() {
     # https://docs.aws.amazon.com/cli/latest/reference/cloudtrail/create-trail.html
     TRAIL_NAME=$1
@@ -26,8 +78,7 @@ function prepare_and_create_cloudtrail() {
     # Prompt for name of cloudtrail
     read -p "Enter a name for your trail: " TRAIL_NAME
 
-    # Prompt for name of bucket to output files to
-    read -p "Enter the name of an S3 bucket for CloudTrail to output to (must exist already): " TRAIL_BUCKET_NAME
+    prompt_to_create_bucket
 
     # Prompt user if they want it to be a multi region trail (which is recommended)
     while true; do
@@ -112,7 +163,7 @@ function prompt_for_cloudtrail_name() {
 
 function prompt_to_create_cloudtrail() {
     while true; do
-        read -p "Would you like to setup cloudtrail (yes/no)? " YESNO
+        read -p "Would you like to setup CloudTrail (yes/no)? " YESNO
 
         case $YESNO in
             Yes|yes) prepare_and_create_cloudtrail; break;;
