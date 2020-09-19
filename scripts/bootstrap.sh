@@ -223,11 +223,36 @@ function create_lambda() {
     # Zip the code
     zip_lambda
 
+    if [ -z "${AWS_ACCOUNT_ID}" ]; then
+        AWS_ACCOUNT_ID=$(aws sts get-caller-identity | jq -r '.Account')
+    fi
+
+    if [ -z "${TABLE_DATABASE}" ]; then
+        while true; do
+            read -p "Enter the name of the database where the table is located: " TABLE_DATABASE
+
+            if [ ! -z "${TABLE_DATABASE}" ]; then
+                break
+            fi
+        done
+    fi
+
+    if [ -z "${TABLE_NAME}" ]; then
+        while true; do
+            read -p "Enter the name of the name of the table where logs are stored: " TABLE_NAME
+
+            if [ ! -z "${TABLE_NAME}" ]; then
+                break
+            fi
+        done
+    fi
+
     aws lambda create-function \
         --function-name "${LAMBDA_NAME}" \
         --runtime python3.8 \
         --zip-file fileb://function.zip \
         --handler main.lambda_handler \
+        --environment "Variables={BUCKET=${TRAIL_BUCKET_NAME},ACCOUNT_ID=${AWS_ACCOUNT_ID},DATABASE=${TABLE_DATABASE},LOG_LOCATION=AWSLogs,TABLE_NAME=${TABLE_NAME},OUTPUT_LOC=s3://${QUERY_OUTPUT_LOC}}" \
         --role "${LAMBDA_ROLE_ARN}" > /dev/null 2>&1 && echo "Lambda created successfully" || "Unable to create lambda, please check your configuration and try again"
 }
 
