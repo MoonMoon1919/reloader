@@ -31,6 +31,5 @@ OUTPUT_LOC="s3://<athena output bucket>/<output loc>/"
 ---
 
 ## TO DO:
-- [ ] Bootstrap Install
 - [ ] Alerts/Notifications
 - [ ] Optional quicksight dashboards

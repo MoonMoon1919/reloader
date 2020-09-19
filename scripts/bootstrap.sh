@@ -478,3 +478,5 @@ function add_event_rule() {
 prompt_for_cloudtrail
 prompt_for_athena
 prompt_for_lambda
+
+echo "Bootstrap successful. If you created a Trail please enable it from the AWS console."
