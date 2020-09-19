@@ -31,10 +31,6 @@ OUTPUT_LOC="s3://<athena output bucket>/<output loc>/"
 ---
 
 ## TO DO:
-- [x] Rewrite to handle based on Cron'd event
-- [x] Add Codefresh for CI
-- [x] Rebuild partition checking logic to use better query
-- [x] Finish unit tests
 - [ ] Bootstrap Install
-- [ ] Optional quicksight dashboards
 - [ ] Alerts/Notifications
+- [ ] Optional quicksight dashboards

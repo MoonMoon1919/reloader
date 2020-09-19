@@ -1,6 +1,6 @@
 #!/bin/bash
 
-function prompt_existing_bucket() {
+function prompt_existing_cloudtrail_bucket() {
     # Prompt for name of bucket to output files to
     while true; do
         read -p "Enter the name of an S3 bucket for CloudTrail to output to (must exist already): " TRAIL_BUCKET_NAME
@@ -25,7 +25,7 @@ function add_cloudtrail_bucket_policy() {
     aws s3api put-bucket-policy --bucket "${TRAIL_BUCKET_NAME}" --policy file://scripts/bucket_policy.json > /dev/null 2>&1 && echo "Added bucket policy" || echo "Unable to add bucket policy, please check permissions and try again"
 }
 
-function create_new_bucket() {
+function create_new_cloudtrail_bucket() {
     # https://docs.aws.amazon.com/cli/latest/reference/s3/mb.html
     while true; do
         read -p "Enter a name for your CloudTrail logs S3 bucket: " TRAIL_BUCKET_NAME
@@ -40,13 +40,13 @@ function create_new_bucket() {
     aws s3 mb s3://"${TRAIL_BUCKET_NAME}" > /dev/null 2>&1 && echo "Bucket created successfully" && add_cloudtrail_bucket_policy "${TRAIL_BUCKET_NAME}" || echo "Unable to create bucket, please check permissions and try again"
 }
 
-function prompt_to_create_bucket() {
+function prompt_to_create_cloudtrail_bucket() {
     while true; do
         read -p "Would you like to create an S3 bucket to store Cloudtrail logs (yes/no)? " YESNO
 
         case $YESNO in
-            Yes|yes) create_new_bucket; break;;
-            No|no) prompt_existing_bucket; break;;
+            Yes|yes) create_new_cloudtrail_bucket; break;;
+            No|no) prompt_existing_cloudtrail_bucket; break;;
             *) echo "Please answer yes or no";;
         esac
     done
@@ -78,7 +78,7 @@ function prepare_and_create_cloudtrail() {
     # Prompt for name of cloudtrail
     read -p "Enter a name for your trail: " TRAIL_NAME
 
-    prompt_to_create_bucket
+    prompt_to_create_cloudtrail_bucket
 
     # Prompt user if they want it to be a multi region trail (which is recommended)
     while true; do
@@ -199,6 +199,45 @@ function create_athena_table() {
         --result-configuration OutputLocation="s3://${QUERY_OUTPUT_LOC}" > /dev/null 2>&1 && echo "Table created successfully" || echo "Unable to execute Athena query, please try again"
 }
 
+function create_new_athena_results_bucket() {
+    # https://docs.aws.amazon.com/cli/latest/reference/s3/mb.html
+    while true; do
+        read -p "Enter a name for your Athena results S3 bucket: " QUERY_OUTPUT_LOC
+
+        if [ ! -z "${QUERY_OUTPUT_LOC}" ]; then
+            break
+        fi
+    done
+
+    echo "Creating S3 bucket.."
+
+    aws s3 mb s3://"${QUERY_OUTPUT_LOC}" > /dev/null 2>&1 && echo "Bucket created successfully" || echo "Unable to create bucket, please check permissions and try again"
+}
+
+function prompt_existing_athena_results_bucket() {
+    while true; do
+        read -p "Enter the name of the bucket and optionally a prefix for the output of the create table query (path optional): " QUERY_OUTPUT_LOC
+
+        if [ ! -z "${QUERY_OUTPUT_LOC}" ]; then
+            break
+        else
+            echo "Table name must be set"
+        fi
+    done
+}
+
+function prompt_athena_results_bucket() {
+    while true; do
+        read -p "Would you like to create an S3 bucket to store Athena results (yes/no)? " YESNO
+
+        case $YESNO in
+            Yes|yes) create_new_athena_results_bucket; break;;
+            No|no) prompt_existing_athena_results_bucket; break;;
+            *) echo "Please answer yes or no";;
+        esac
+    done
+}
+
 function prepare_and_execute_sql_statement() {
     TRAIL_BUCKET_NAME=$1
     # Retrieve the account id which helps determine where the logs will be located
@@ -233,15 +272,7 @@ function prepare_and_execute_sql_statement() {
 
     QUERY_STRING=$(sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/ /g' -e "s/\${ATHENA_TABLE_NAME}/${TABLE_NAME}/" -e "s/\${ACCOUNT_ID}/${AWS_ACCOUNT_ID}/" -e "s/\${TRAIL_BUCKET_NAME}/${TRAIL_BUCKET_NAME}/" ./scripts/create_table.tpl.sql)
 
-    while true; do
-        read -p "Enter the name of the bucket and optionally a prefix for the output of the create table query (path optional): " QUERY_OUTPUT_LOC
-
-        if [ ! -z "${QUERY_OUTPUT_LOC}" ]; then
-            break
-        else
-            echo "Table name must be set"
-        fi
-    done
+    prompt_athena_results_bucket
 
     create_athena_table "${QUERY_STRING}" "${TABLE_DATABASE}" "${TABLE_DATA_CATALOG}" "${QUERY_OUTPUT_LOC}"
 }
@@ -260,7 +291,7 @@ function prompt_for_lambda() {
 
         case $YESNO in
             Yes|yes) prepare_and_create_lambda; break;;
-            No|no) "Passing on lambda and event rule setup.."; break;;
+            No|no) echo "Passing on lambda and event rule setup.."; break;;
             *) echo "Please answer yes or no";;
         esac
     done
@@ -335,8 +366,24 @@ function create_policy_doc() {
     # https://docs.aws.amazon.com/cli/latest/reference/iam/create-policy.html
     AWS_REGION=$(aws configure get region)
 
+    if [ -z "${TRAIL_BUCKET_NAME}" ]; then
+        while true; do
+            read -p "Enter the name of an S3 bucket for CloudTrail to output to (must exist already): " TRAIL_BUCKET_NAME
+
+            if [ ! -z "${TRAIL_BUCKET_NAME}" ]; then
+                break
+            fi
+        done
+    fi
+
     if [ -z "${QUERY_OUTPUT_LOC}" ]; then
-        read -p "Enter the name of the bucket where query outputs will be stored: " QUERY_OUTPUT_LOC
+        while true; do
+            read -p "Enter the name of the bucket where query outputs will be stored: " QUERY_OUTPUT_LOC
+
+            if [ ! -z "${QUERY_OUTPUT_LOC}" ]; then
+                break
+            fi
+        done
     fi
 
     POLICYDOC=$(sed -e "s/\${AWS_REGION}/${AWS_REGION}/" -e "s/\${AWS_ACCOUNT_ID}/${AWS_ACCOUNT_ID}/" -e "s/\${QUERY_OUTPUT_LOC}/${QUERY_OUTPUT_LOC}/" -e "s/\${LAMBDA_NAME}/${LAMBDA_NAME}/" -e "s/\${TRAIL_BUCKET_NAME}/${TRAIL_BUCKET_NAME}/" ./scripts/iam_policy.tpl.json)
@@ -384,6 +431,8 @@ function prepare_and_create_lambda() {
     create_lambda_policy
 
     create_lambda "${LAMBDA_NAME}" "${LAMBDA_ROLE_ARN}"
+
+    add_event_rule
 }
 
 function add_lambda_policy() {
@@ -429,4 +478,3 @@ function add_event_rule() {
 prompt_for_cloudtrail
 prompt_for_athena
 prompt_for_lambda
-add_event_rule
