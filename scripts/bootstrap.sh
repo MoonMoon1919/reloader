@@ -258,6 +258,11 @@ function create_lambda_role() {
 function create_policy_doc() {
     # https://docs.aws.amazon.com/cli/latest/reference/iam/create-policy.html
     AWS_REGION=$(aws configure get region)
+
+    if [ -z "${QUERY_OUTPUT_LOC}" ]; then
+        read -p "Enter the name of the bucket where query outputs will be stored: " QUERY_OUTPUT_LOC
+    fi
+
     POLICYDOC=$(sed -e "s/\${AWS_REGION}/${AWS_REGION}/" -e "s/\${AWS_ACCOUNT_ID}/${AWS_ACCOUNT_ID}/" -e "s/\${QUERY_OUTPUT_LOC}/${QUERY_OUTPUT_LOC}/" -e "s/\${LAMBDA_NAME}/${LAMBDA_NAME}/" -e "s/\${TRAIL_BUCKET_NAME}/${TRAIL_BUCKET_NAME}/" ./scripts/iam_policy.tpl.json)
 
     echo "${POLICYDOC}" > ./scripts/iam_policy.json
