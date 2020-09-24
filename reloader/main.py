@@ -9,11 +9,11 @@ import json
 import logging
 import os
 from time import sleep
-from typing import TypedDict, Optional
+from typing import TypedDict, Optional, Any
 
 # Import from
-import boto3
-from botocore.exceptions import ClientError
+import boto3  # type: ignore
+from botocore.exceptions import ClientError  # type: ignore
 
 # Retrieve env vars
 bucket = os.environ.get("BUCKET")
@@ -61,14 +61,14 @@ class ExecutionResponse(TypedDict):
 class Athena:
     """Class for interacting with AWS Athena."""
 
-    def __init__(self, database: str, output_loc: str) -> None:
+    def __init__(self, database: str = None, output_loc: str = None) -> None:
         self.database = database
         self.output_loc = output_loc
 
         self.client = boto3.client("athena")
         self.paginator = self.client.get_paginator("get_query_results")
 
-    def results(self, execution_response: ExecutionResponse) -> dict:
+    def results(self, execution_response: ExecutionResponse) -> list:
         try:
             resp = self.paginator.paginate(QueryExecutionId=execution_response["execution_id"])
         except ClientError as e:
@@ -78,7 +78,7 @@ class Athena:
         finally:
             return results
 
-    def wait_for_completion(self, execution_response: ExecutionResponse) -> str:
+    def wait_for_completion(self, execution_response: ExecutionResponse) -> Optional[Any]:
         """Execute an Athena query and wait until it has succeeded, failed, or been cancelled.
 
         Args:
@@ -112,9 +112,12 @@ class Athena:
             - ExecutionResponse object
         """
         execution_id = execution_response.get("QueryExecutionId")
-        execution_res_location = output_loc + execution_id + ".txt"
 
-        return ExecutionResponse(execution_id=execution_id, execution_res_loc=execution_res_location)
+        if execution_id:
+            execution_res_location = self.output_loc + execution_id + ".txt"
+            return ExecutionResponse(execution_id=execution_id, execution_res_loc=execution_res_location)
+
+        return ExecutionResponse(execution_id="", execution_res_loc="")
 
     def execute_query(self, query: str) -> ExecutionResponse:
         """Executes an athena query.
@@ -144,7 +147,7 @@ class Athena:
         query_end: datetime,
         current_time: datetime,
         x_amzn_request_id: str,
-    ) -> dict:
+    ) -> list:
         """Handler for query succeeded.
 
         Args:
@@ -256,26 +259,29 @@ class Athena:
         execution_response = self.execute_query(query=query)
         resp = self.wait_for_completion(execution_response=execution_response)
 
-        # Retrieve necessary data from the resp
-        status = resp.get("QueryExecution", {}).get("Status", {}).get("State", None)
-        query_start = resp.get("QueryExecution", {}).get("Status", {}).get("SubmissionDateTime")
-        query_end = resp.get("QueryExecution", {}).get("Status", {}).get("CompletionDateTime")
-        x_amzn_request_id = resp.get("ResponseMetadata", {}).get("RequestId")
+        if resp is not None:
+            # Retrieve necessary data from the resp
+            status = resp.get("QueryExecution", {}).get("Status", {}).get("State", None)
+            query_start = resp.get("QueryExecution", {}).get("Status", {}).get("SubmissionDateTime")
+            query_end = resp.get("QueryExecution", {}).get("Status", {}).get("CompletionDateTime")
+            x_amzn_request_id = resp.get("ResponseMetadata", {}).get("RequestId")
 
-        # Get current time for the log time
-        current_time = datetime.now()
+            # Get current time for the log time
+            current_time = datetime.now()
 
-        # Handle the status of the query dynamically
-        if status:
-            handler = getattr(self, status.lower(), None)
-            return handler(
-                execution_response=execution_response,
-                query=query,
-                query_start=query_start,
-                query_end=query_end,
-                x_amzn_request_id=x_amzn_request_id,
-                current_time=current_time,
-            )
+            # Handle the status of the query dynamically
+            if status:
+                handler = getattr(self, status.lower(), None)
+                return handler(
+                    execution_response=execution_response,
+                    query=query,
+                    query_start=query_start,
+                    query_end=query_end,
+                    x_amzn_request_id=x_amzn_request_id,
+                    current_time=current_time,
+                )
+
+        return {}
 
 
 class TablePartition:
@@ -370,16 +376,16 @@ class Event:
 
     @property
     def event_month(self) -> str:
-        month = self.time.month
+        month = self.time.month  # type: ignore
         return str(month).zfill(2)
 
     @property
     def event_year(self) -> str:
-        return str(self.time.year)
+        return str(self.time.year)  # type: ignore
 
     @property
     def event_day(self) -> str:
-        day = self.time.day
+        day = self.time.day  # type: ignore
         return str(day).zfill(2)
 
     def _convert_to_datetime(self, timestamp: str) -> Optional[datetime]:
@@ -397,7 +403,7 @@ athena = Athena(database=database, output_loc=output_loc)
 
 
 class S3Helper:
-    def __init__(self, bucket: str, account_id: str):
+    def __init__(self, bucket: str = None, account_id: str = None):
         self._bucket = bucket
         self._account_id = account_id
         self._client = boto3.client("s3")

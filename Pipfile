@@ -8,6 +8,7 @@ black = "*"
 pytest = "*"
 safety = "*"
 flake8 = "*"
+mypy = "*"
 
 [packages]
 boto3 = "*"
