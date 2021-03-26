@@ -7,6 +7,7 @@ ENV ACCOUNT_ID="123456789101"
 ENV DATABASE="default"
 ENV TABLE_NAME="cloudtrail_logs"
 ENV OUTPUT_LOC="s3://foo/bar/"
+ENV CRYPTOGRAPHY_DONT_BUILD_RUST=1
 
 RUN apk add --update build-base bash libffi-dev openssl-dev && pip install pipenv setuptools wheel twine
 
